@@ -7,11 +7,24 @@
  */
 
 import * as path from "node:path";
-import { buildSubcToolSchemasJson } from "../src/subc-tool-schemas.js";
+
+export async function buildAftBridgeDist(repoRoot: string): Promise<void> {
+  const bridgeRoot = path.join(repoRoot, "packages", "aft-bridge");
+  const build = Bun.spawn(["bun", "run", "build"], {
+    cwd: bridgeRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await build.exited) !== 0) {
+    throw new Error("aft-bridge build failed before tool schema generation");
+  }
+}
 
 async function main() {
   const pluginRoot = path.resolve(import.meta.dir, "..");
   const repoRoot = path.resolve(pluginRoot, "..", "..");
+  await buildAftBridgeDist(repoRoot);
+  const { buildSubcToolSchemasJson } = await import("../src/subc-tool-schemas.js");
   const outputPath = path.join(repoRoot, "crates", "aft", "src", "subc_tool_schemas.json");
   const hashlineOutputPath = path.join(
     repoRoot,
@@ -62,4 +75,4 @@ async function main() {
   );
 }
 
-main();
+if (import.meta.main) await main();
