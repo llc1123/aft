@@ -2,6 +2,9 @@
 resolver = "2"
 members = ["crates/aft", "crates/aft-tokenizer"]
 
+[workspace.package]
+rust-version = "1.92"
+
 [profile.release]
 lto = true
 codegen-units = 1

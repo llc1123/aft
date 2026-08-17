@@ -30,6 +30,23 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  rust-msrv:
+    name: Cargo check (Rust 1.92 MSRV)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@1.92.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-msrv
+          cache-on-failure: true
+
+      - name: Check workspace on declared MSRV
+        run: cargo check --workspace --all-targets --locked
+
   # ---------------------------------------------------------------------------
   # Rust + plugin unit tests on Linux (fast inner loop)
   #
