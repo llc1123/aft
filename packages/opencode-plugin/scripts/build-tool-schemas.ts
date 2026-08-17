@@ -6,10 +6,31 @@
  * Output: crates/aft/src/subc_tool_schemas.json
  */
 
+import { stat } from "node:fs/promises";
 import * as path from "node:path";
 
-export async function buildAftBridgeDist(repoRoot: string): Promise<void> {
+async function aftBridgeDistIsFresh(bridgeRoot: string): Promise<boolean> {
+  const dist = await stat(path.join(bridgeRoot, "dist", "index.js")).catch(() => undefined);
+  if (!dist) return false;
+
+  const inputs = ["package.json", "tsconfig.json"];
+  for await (const source of new Bun.Glob("src/**/*.{ts,tsx}").scan({
+    cwd: bridgeRoot,
+    onlyFiles: true,
+  })) {
+    inputs.push(source);
+  }
+  for (const input of inputs) {
+    const metadata = await stat(path.join(bridgeRoot, input)).catch(() => undefined);
+    if (metadata && metadata.mtimeMs > dist.mtimeMs) return false;
+  }
+  return true;
+}
+
+export async function ensureAftBridgeDist(repoRoot: string): Promise<void> {
   const bridgeRoot = path.join(repoRoot, "packages", "aft-bridge");
+  if (await aftBridgeDistIsFresh(bridgeRoot)) return;
+
   const build = Bun.spawn(["bun", "run", "build"], {
     cwd: bridgeRoot,
     stdout: "inherit",
@@ -23,7 +44,8 @@ export async function buildAftBridgeDist(repoRoot: string): Promise<void> {
 async function main() {
   const pluginRoot = path.resolve(import.meta.dir, "..");
   const repoRoot = path.resolve(pluginRoot, "..", "..");
-  await buildAftBridgeDist(repoRoot);
+  await ensureAftBridgeDist(repoRoot);
+  if (process.argv.includes("--prepare-only")) return;
   const { buildSubcToolSchemasJson } = await import("../src/subc-tool-schemas.js");
   const outputPath = path.join(repoRoot, "crates", "aft", "src", "subc_tool_schemas.json");
   const hashlineOutputPath = path.join(
